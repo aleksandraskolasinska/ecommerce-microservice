@@ -1,0 +1,51 @@
+version: '3'
+
+name: microservices
+
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d db"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+
+  product:
+    image: lab/microservices:product
+    build:
+      context: ./services/
+      dockerfile: Dockerfile.product
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    volumes:
+      - ./services/:/code/
+    command: uvicorn code.product.main:app --host 0.0.0.0 --port 80 --reload
+
+  order:
+    image: lab/microservices:order
+    build:
+      context: ./services/
+      dockerfile: Dockerfile.order
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:80" 
+    volumes:
+      - ./services/:/code/
+    command: uvicorn code.order.main:app --host 0.0.0.0 --port 80 --reload
+
+volumes:
+  pgdata:
